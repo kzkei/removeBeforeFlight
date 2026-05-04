@@ -1,0 +1,22 @@
+CREATE TABLE raw_flight_states (
+    id SERIAL PRIMARY KEY,
+    icao24 VARCHAR(6) NOT NULL,
+    callsign VARCHAR(8),
+    origin_country VARCHAR(64) NOT NULL,
+    time_position BIGINT,
+    last_contact BIGINT NOT NULL,
+    longitude DOUBLE PRECISION,
+    latitude DOUBLE PRECISION,
+    baro_altitude DOUBLE PRECISION,
+    on_ground BOOLEAN NOT NULL,
+    velocity DOUBLE PRECISION,
+    true_track DOUBLE PRECISION,
+    vertical_rate DOUBLE PRECISION,
+    sensors INTEGER[],
+    geo_altitude DOUBLE PRECISION,
+    squawk VARCHAR(4),
+    spi BOOLEAN NOT NULL,
+    position_source INTEGER NOT NULL,
+    category INTEGER,
+    fetched_at TIMESTAMP DEFAULT NOW()
+)
