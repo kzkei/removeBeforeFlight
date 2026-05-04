@@ -1,0 +1,17 @@
+*.log
+*.yaml
+
+# Airflow
+*.cfg
+airflow.cfg
+airflow/config/airflow.cfg
+airflow/logs/
+airflow/plugins/
+
+# Virtual environment
+*.env
+/myenv
+
+# Python
+__pycache__/
+*.py[cod]
