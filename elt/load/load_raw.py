@@ -1,4 +1,4 @@
-# injest raw
+# ingest raw
 import logging, psycopg2, psycopg2.extras
 from datetime import datetime
 from utils import connections
@@ -13,8 +13,8 @@ def load_raw_states(states, fetched_at):
         logger.error(f"states passed as null/empty: {states}")
         return
     
-    if not fetched_at or fetched_at is not type(datetime.time):
-        logger.error(f"fetched_at must be of datetime.time")
+    if not fetched_at or type(fetched_at) is not type(datetime.now):
+        logger.error(f"fetched_at must be of datetime.now")
         return
 
     # connect to raw_flight_states table

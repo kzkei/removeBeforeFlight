@@ -7,7 +7,7 @@ import os, logging
 logger = logging.getLogger(__name__)
 
 # load .env vars with find
-load_dotenv(find_dotenv)
+load_dotenv(find_dotenv())
 
 # load db config
 DB_CONFIG = {
