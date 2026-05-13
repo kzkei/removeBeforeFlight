@@ -21,7 +21,7 @@ def main():
     logger.info(f"States json from fetch: {states}")
 
     # insert into raw table
-    #load_raw_states(states, fetched_at)
+    load_raw_states(states, fetched_at)
 
     # end -> dbt from here
     logger.info("main complete")

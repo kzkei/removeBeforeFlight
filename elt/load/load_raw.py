@@ -13,8 +13,8 @@ def load_raw_states(states, fetched_at):
         logger.error(f"states passed as null/empty: {states}")
         return
     
-    if not fetched_at or type(fetched_at) is not type(datetime.now):
-        logger.error(f"fetched_at must be of datetime.now")
+    if not fetched_at or isinstance(fetched_at, datetime) == False:
+        logger.error(f"fetched_at must be of datetime")
         return
 
     # connect to raw_flight_states table
