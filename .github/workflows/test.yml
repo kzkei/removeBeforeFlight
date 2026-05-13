@@ -1,0 +1,45 @@
+name: EL Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      test-postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: removebeforeflight_test
+          POSTGRES_PASSWORD: removebeforeflight_test
+          POSTGRES_DB: removebeforeflight_test
+        ports:
+          - 5436:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+          
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+            python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install -r elt/requirements.txt
+
+      - name: Run tests
+        working-directory: elt
+        run: pytest tests/test_raw_el.py -v
+
+        

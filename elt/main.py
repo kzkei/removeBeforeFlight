@@ -1,5 +1,5 @@
 # main for raw el
-from extract.injest_raw import fetch_states
+from extract.ingest_raw import fetch_states
 from load.load_raw import load_raw_states
 from utils.log_config import setup_logging
 from datetime import datetime
@@ -18,10 +18,10 @@ def main():
     # fetch raw states (list of lists)
     states = fetch_states()
 
-    logger.debug(f"States json from fetch: {states}")
+    logger.info(f"States json from fetch: {states}")
 
     # insert into raw table
-    load_raw_states(states, fetched_at)
+    #load_raw_states(states, fetched_at)
 
     # end -> dbt from here
     logger.info("main complete")
