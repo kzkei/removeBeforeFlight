@@ -1,0 +1,50 @@
+version: 2
+
+sources:
+  - name: removebeforeflight
+    database: removebeforeflight
+    schema: public
+    tables:
+      - name: raw_flight_states
+        description: "Raw flight state vectors ingested from OpenSky API"
+        columns:
+          - name: id
+            description: "Serial primary key"
+          - name: icao24
+            description: "Unique ICAO 24-bit aircraft identifier"
+          - name: callsign
+            description: "Flight callsign"
+          - name: origin_country
+            description: "Country of origin derived from ICAO24"
+          - name: time_position
+            description: "Unix timestamp of last position update"
+          - name: last_contact
+            description: "Unix timestamp of last contact with receiver"
+          - name: longitude
+            description: "Longitude in decimal degrees"
+          - name: latitude
+            description: "Latitude in decimal degrees"
+          - name: baro_altitude
+            description: "Barometric altitude in meters"
+          - name: on_ground
+            description: "True if aircraft is on ground"
+          - name: velocity
+            description: "Velocity in m/s"
+          - name: true_track
+            description: "True track angle in degrees"
+          - name: vertical_rate
+            description: "Vertical rate in m/s"
+          - name: sensors
+            description: "Receiver IDs that contributed to this state"
+          - name: geo_altitude
+            description: "Geometric altitude in meters"
+          - name: squawk
+            description: "Transponder squawk code"
+          - name: spi
+            description: "Special purpose indicator"
+          - name: position_source
+            description: "Source of position data 0=ADS-B 1=ASTERIX 2=MLAT"
+          - name: category
+            description: "Aircraft category"
+          - name: fetched_at
+            description: "Timestamp when this state vector was ingested"
