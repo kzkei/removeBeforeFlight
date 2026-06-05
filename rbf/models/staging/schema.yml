@@ -1,0 +1,25 @@
+version: 2
+
+models:
+  - name: fct_flight_emissions
+    description: "Flight emissions estimates using ICAO CO2 methodology"
+    columns:
+      - name: id
+        data_tests:
+          - unique
+          - not_null
+      - name: icao24
+        data_tests:
+          - not_null
+      - name: velocity_kmh
+        description: "Velocity converted from m/s to km/h"
+        data_tests:
+          - not_null
+      - name: co2_kg_s
+        description: "Estimated CO2 output in kg per second"
+        data_tests:
+          - not_null
+      - name: fuel_burn_rate_kg_s
+        description: "Fuel burn rate in kg per second by altitude regime"
+        data_tests:
+          - not_null
