@@ -1,0 +1,27 @@
+version: 2
+
+models:
+  - name: stg_flight_states
+    description: "Cleaned and typed flight state vectors from OpenSky. Airborne only."
+    columns:
+      - name: id
+        description: "Serial primary key from raw table"
+        data_tests:
+          - unique
+          - not_null
+      - name: icao24
+        description: "ICAO 24-bit aircraft identifier"
+        data_tests:
+          - not_null
+      - name: origin_country
+        description: "Country of origin"
+        data_tests:
+          - not_null
+      - name: last_contact_at
+        description: "Timestamp of last contact, cast from Unix"
+        data_tests:
+          - not_null
+      - name: on_ground
+        description: "Always false in this model from filter at staging"
+        data_tests:
+          - not_null
