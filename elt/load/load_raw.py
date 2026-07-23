@@ -6,7 +6,7 @@ from utils import connections
 # setup logging
 logger = logging.getLogger(__name__)
 
-def load_raw_states(states, fetched_at):
+def load_raw_states(states, fetched_at, conn):
     logger.info("exec load")
 
     if not states or len(states) == 0:
@@ -18,7 +18,7 @@ def load_raw_states(states, fetched_at):
         return
 
     # connect to raw_flight_states table
-    conn, cursor = connections.open()
+    cursor = conn.cursor()
     
     # wrtie to raw_flight_states
     logger.debug(f"Loading {len(states)} flight vectors : {states}")
@@ -31,7 +31,8 @@ def load_raw_states(states, fetched_at):
         sensors, geo_altitude, squawk, spi,
         position_source, category, fetched_at)
         VALUES %s
-    """
+        ON CONFLICT (icao24, last_contact) DO NOTHING
+        """
 
     # comprhend list of tuples for insertion with identical fetched timestamps
     rows = []
@@ -41,9 +42,9 @@ def load_raw_states(states, fetched_at):
     # exec rows load
     psycopg2.extras.execute_values(cursor, insert_query, rows)
 
-    # commit transaction and close
+    # commit transaction
+    # connection close occurs outside
     conn.commit()
-    connections.close(conn, cursor)
 
     logger.info("raw load complete")
 

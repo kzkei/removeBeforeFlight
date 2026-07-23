@@ -1,0 +1,1 @@
+DROP UNIQUE CONSTRAINT IF EXISTS uniq_icao_last_contact ON raw_flight_states;

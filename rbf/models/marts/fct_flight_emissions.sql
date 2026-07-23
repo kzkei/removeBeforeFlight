@@ -2,7 +2,7 @@ with flights as (
     select * from {{ ref('stg_flight_states') }}
 ),
 
--- reasonabkle approximation of real emissions based on flight state data and ICAO fuel burn factors
+-- reasonable approximation of real emissions based on flight state data and ICAO fuel burn factors
 emissions as (
     select
         -- flight identifiers

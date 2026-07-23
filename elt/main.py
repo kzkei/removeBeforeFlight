@@ -1,3 +1,6 @@
+""" DEPRECATED """
+
+
 # main for raw el
 from extract.ingest_raw import fetch_states
 from load.load_raw import load_raw_states

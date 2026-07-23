@@ -1,5 +1,6 @@
 *.log
 *.yaml
+*.yml
 
 # Airflow
 *.cfg
