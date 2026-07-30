@@ -1,6 +1,4 @@
 *.log
-*.yaml
-*.yml
 
 # Airflow
 *.cfg
@@ -8,6 +6,11 @@ airflow.cfg
 airflow/config/airflow.cfg
 airflow/logs/
 airflow/plugins/
+
+# dbt secrets
+rbf/profiles.yml
+.user.yml
+**/.user.yml
 
 # Virtual environment
 *.env

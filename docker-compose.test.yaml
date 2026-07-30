@@ -1,0 +1,14 @@
+services:
+  test-postgres: # new service for testing
+    image: postgres:15
+    environment:
+      POSTGRES_USER: removebeforeflight_test
+      POSTGRES_PASSWORD: removebeforeflight_test
+      POSTGRES_DB: removebeforeflight_test
+    ports:
+      - "5436:5432" # alternate port 
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U removebeforeflight_test -d removebeforeflight_test"]
+      interval: 5s
+      retries: 5
+      start_period: 5s
