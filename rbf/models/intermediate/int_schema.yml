@@ -1,7 +1,7 @@
 version: 2
 
 models:
-  - name: fct_flight_emissions
+  - name: int_flight_emissions_calc
     description: "Flight emissions estimates using ICAO CO2 methodology"
     columns:
       - name: id

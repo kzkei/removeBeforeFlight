@@ -1,20 +1,11 @@
--- overwrite table materialization to incremental, add composite key for uniqueness, and schema change handling for possible new/modified columns
-{{ config(
-    materialized = 'incremental',
-    unique_key = ['icao24', 'fetched_at'],
-    on_schema_change = 'sync_all_columns' 
-) }}
+-- intermediate model to calculate flight emissions based on flight state data and ICAO fuel burn factors
+-- model used for both fct_flight_emissions and fct_flight_emissions_verified; where category is used to filter state data
 
 with flights as (
     select * from {{ ref('stg_flight_states') }}
-
-    -- incremental filter to only process new records
-    {% if is_incremental() %}
-    where fetched_at > (select max(fetched_at) from {{ this }})
-    {% endif %}
 ),
 
--- reasonable approximation of real emissions based on flight state data and ICAO fuel burn factors
+-- apply calculation, reasonable approximation of real emissions based on flight state data and ICAO fuel burn factors
 emissions as (
     select
         -- flight identifiers
