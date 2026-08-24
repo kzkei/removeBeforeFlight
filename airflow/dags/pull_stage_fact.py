@@ -2,7 +2,7 @@ from airflow.sdk import dag, task
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 import logging, subprocess
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, timezone
 
 # set up module logger
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ def live_flights_pipeline():
         # open postgres hook where conn is necessary
         hook = PostgresHook(postgres_conn_id="removebeforeflight_app")
         conn = hook.get_conn()
-        fetched_at = datetime.now()
+        fetched_at = datetime.now(timezone.utc)
 
         # load raw
         load_raw_states(states, fetched_at, conn)
@@ -79,10 +79,13 @@ def live_flights_pipeline():
         logger.info("dbt run complete")
         return
         
-    # define task flow
+    # define task flow - ingest and load steps are separated by xcom
     states = ingest()
-    load(states=states)
-    dbt_exec()
+    load_task = load(states=states)
+    dbt_task = dbt_exec()
+
+    # force wait with task dependency
+    load_task >> dbt_task
 
 # exec dag pipeline
 live_flights_pipeline()
