@@ -1,5 +1,7 @@
 -- intermediate model to calculate flight emissions based on flight state data and ICAO fuel burn factors
--- model used for both fct_flight_emissions and fct_flight_emissions_verified; where category is used to filter state data
+-- model used for all fct tables
+-- model describes emissions on the stg_flight_states view or the set of assumed aircraft (0-6)
+
 
 with flights as (
     select * from {{ ref('stg_flight_states') }}

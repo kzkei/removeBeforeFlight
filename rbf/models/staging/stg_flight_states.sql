@@ -38,6 +38,7 @@ staged as (
     where icao24 is not null
       and last_contact is not null
       and on_ground = false  -- only airborne flights for emissions
+      and category in (0, 1, 2, 3, 4, 5, 6) -- only fixed-wing and (0, 1) categories
 )
 
 select * from staged

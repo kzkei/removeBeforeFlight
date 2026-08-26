@@ -23,3 +23,13 @@ models:
         description: "Fuel burn rate in kg per second by altitude regime"
         data_tests:
           - not_null
+      - name: category
+        description: "Aircraft category"
+        data tests:
+          - accepted_values:
+              arguments:
+                values: [0,1,2,3,4,5,6]
+          - not_null
+
+  - name: int_flights_verified
+    description: "Flight emissions verified: filtered by known fixed-wing categories"

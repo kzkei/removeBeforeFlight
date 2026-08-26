@@ -7,20 +7,13 @@
     on_schema_change = 'sync_all_columns' 
 ) }}
 
-with all_emissions as (
-    select * from {{ ref('int_flight_emissions_calc') }}
+with emissions_verified as (
+    select * from {{ ref('int_flight_emissions_verified') }}
 
     -- incremental filter to only process new records
     {% if is_incremental() %}
     where fetched_at > (select max(fetched_at) from {{ this }})
     {% endif %}
-),
-
-emissions_verified as (
-    select
-        {{ all_telemetry() }}
-    from all_emissions
-    where category in (2,3,4,5,6) -- only fixed-wing aircraft for verified emissions
 )
 
 select * from emissions_verified
