@@ -31,8 +31,8 @@ staged as (
         squawk,
         spi,
         position_source,
-        category,
-        sensors
+        category
+        -- sensors, remove sensors for now (unit tests): because of automatic type-inference-and-cast (int[])
 
     from source
     where icao24 is not null

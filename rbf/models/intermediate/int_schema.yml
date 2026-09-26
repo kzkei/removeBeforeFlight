@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: int_flight_emissions_calc
-    description: "Flight emissions estimates using ICAO CO2 methodology"
+    description: "Flight emissions estimates, using ICAO CO2 methodology, on assumed + verified fixed-wing aircraft categories "
     columns:
       - name: id
         data_tests:
@@ -31,5 +31,289 @@ models:
                 values: [0,1,2,3,4,5,6]
           - not_null
 
-  - name: int_flights_verified
-    description: "Flight emissions verified: filtered by known fixed-wing categories"
+  - name: int_flight_emissions_verified
+    description: "Flight emissions estimates on verified/known fixed-wing aircraft categories"
+    columns:
+      - name: id
+        data_tests:
+          - unique
+          - not_null
+      - name: icao24
+        data_tests:
+          - not_null
+      - name: velocity_kmh
+        description: "Velocity converted from m/s to km/h"
+        data_tests:
+          - not_null
+      - name: co2_kg_s
+        description: "Estimated CO2 output in kg per second"
+        data_tests:
+          - not_null
+      - name: fuel_burn_rate_kg_s
+        description: "Fuel burn rate in kg per second by altitude regime"
+        data_tests:
+          - not_null
+      - name: category
+        description: "Aircraft category"
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [2,3,4,5,6]
+          - not_null
+  
+  - name: int_flight_patterns_calc
+    description: "Flight holding pattern behavior/mertric calc layer"
+    columns:
+      - name: icao24
+        data_tests:
+          - not_null
+      - name: turns_started
+        description: "Count of turns recorded in a trailing window of 15 minutes"
+        data_tests:
+          - not_null
+      - name: distinct_turn_signs
+        description: "Count of distinct turn directions in a trailing window of 15 minutes"
+        data_tests:
+          - not_null
+
+unit_tests:
+ 
+  # ---------------------------------------------------------------------
+  # 1. Pure straight flight — no turns anywhere in the sequence.
+  #    Confirms turns_started / distinct_turn_signs stay at their
+  #    "nothing happened" values (0), and the first-row null propagates
+  #    correctly rather than being misread as a confirmed straight state
+  # ---------------------------------------------------------------------
+  - name: test_straight_baseline
+    model: int_flight_patterns_calc
+    overrides:
+      macros:
+        dbt.current_timestamp: "'2026-08-01 11:25:00'::timestamp"
+        is_incremental: False
+    given:
+      - input: ref('stg_flight_states')
+        rows:
+          - {icao24: 'straight1', fetched_at: '2026-08-01 11:01:00', true_track: 90}  # first row, no prior -> null
+          - {icao24: 'straight1', fetched_at: '2026-08-01 11:02:00', true_track: 95}  # delta +5, inside dead zone -> straight
+          - {icao24: 'straight1', fetched_at: '2026-08-01 11:03:00', true_track: 88}  # delta -7, inside dead zone -> straight
+    expect:
+      rows:
+        - {icao24: 'straight1', fetched_at: '2026-08-01 11:01:00', turns_started: null, distinct_turn_signs: 0}
+        - {icao24: 'straight1', fetched_at: '2026-08-01 11:02:00', turns_started: 0,    distinct_turn_signs: 0}
+        - {icao24: 'straight1', fetched_at: '2026-08-01 11:03:00', turns_started: 0,    distinct_turn_signs: 0}
+ 
+  # ---------------------------------------------------------------------
+  # 2. Exact ±10 degree boundary — code uses strict > 10 / < -10, so a
+  #    delta of exactly 10 or -10 must classify as straight, not a turn
+  # ---------------------------------------------------------------------
+  - name: test_dead_zone_boundary
+    model: int_flight_patterns_calc
+    overrides:
+      macros:
+        dbt.current_timestamp: "'2026-08-01 11:25:00'::timestamp"
+        is_incremental: False
+
+    given:
+      - input: ref('stg_flight_states')
+        rows:
+          - {icao24: 'deadzone1', fetched_at: '2026-08-01 11:01:00', true_track: 100}  # first row -> null
+          - {icao24: 'deadzone1', fetched_at: '2026-08-01 11:02:00', true_track: 110}  # delta exactly +10 -> NOT a turn (straight)
+          - {icao24: 'deadzone1', fetched_at: '2026-08-01 11:03:00', true_track: 100}  # delta exactly -10 -> NOT a turn (straight)
+    expect:
+      rows:
+        - {icao24: 'deadzone1', fetched_at: '2026-08-01 11:01:00', turns_started: null, distinct_turn_signs: 0}
+        - {icao24: 'deadzone1', fetched_at: '2026-08-01 11:02:00', turns_started: 0,    distinct_turn_signs: 0}
+        - {icao24: 'deadzone1', fetched_at: '2026-08-01 11:03:00', turns_started: 0,    distinct_turn_signs: 0}
+ 
+  # ---------------------------------------------------------------------
+  # 3. Just over the threshold in opposite directions, with no straight
+  #    leg between them. Confirms: (a) ±11 correctly classifies as a real
+  #    turn, (b) a direct reversal without revisiting straight never fires
+  #    turns_started (since turn_flag requires the PREVIOUS row to be 0),
+  #    but distinct_turn_signs correctly still flags the mix as 2
+  # ---------------------------------------------------------------------
+  - name: test_just_over_threshold
+    model: int_flight_patterns_calc
+    overrides:
+      macros:
+        dbt.current_timestamp: "'2026-08-01 11:25:00'::timestamp"
+        is_incremental: False
+    given:
+      - input: ref('stg_flight_states')
+        rows:
+          - {icao24: 'thresh1', fetched_at: '2026-08-01 11:01:00', true_track: 100}  # first row -> null
+          - {icao24: 'thresh1', fetched_at: '2026-08-01 11:02:00', true_track: 111}  # delta +11 -> right turn
+          - {icao24: 'thresh1', fetched_at: '2026-08-01 11:03:00', true_track: 100}  # delta -11 -> left turn (direct reversal, no straight between)
+    expect:
+      rows:
+        - {icao24: 'thresh1', fetched_at: '2026-08-01 11:01:00', turns_started: null, distinct_turn_signs: 0}
+        - {icao24: 'thresh1', fetched_at: '2026-08-01 11:02:00', turns_started: 0,    distinct_turn_signs: 1}
+        - {icao24: 'thresh1', fetched_at: '2026-08-01 11:03:00', turns_started: 0,    distinct_turn_signs: 2}
+ 
+  # ---------------------------------------------------------------------
+  # 4. Core "clean start" semantics: confirmed straight, then a turn
+  #    begins, then the turn continues in the same direction. Confirms
+  #    turns_started fires exactly once (on entry), not again while the
+  #    turn is ongoing
+  # ---------------------------------------------------------------------
+  - name: test_turn_from_straight_fires_once
+    model: int_flight_patterns_calc
+    overrides:
+      macros:
+        dbt.current_timestamp: "'2026-08-01 11:25:00'::timestamp"
+        is_incremental: False
+    given:
+      - input: ref('stg_flight_states')
+        rows:
+          - {icao24: 'startonce1', fetched_at: '2026-08-01 11:01:00', true_track: 90}   # first row -> null
+          - {icao24: 'startonce1', fetched_at: '2026-08-01 11:02:00', true_track: 90}   # delta 0 -> confirmed straight
+          - {icao24: 'startonce1', fetched_at: '2026-08-01 11:03:00', true_track: 140}  # delta +50 -> turn begins (straight -> turn)
+          - {icao24: 'startonce1', fetched_at: '2026-08-01 11:04:00', true_track: 210}  # delta +70 -> turn continues, same direction
+    expect:
+      rows:
+        - {icao24: 'startonce1', fetched_at: '2026-08-01 11:01:00', turns_started: null, distinct_turn_signs: 0}
+        - {icao24: 'startonce1', fetched_at: '2026-08-01 11:02:00', turns_started: 0,    distinct_turn_signs: 0}
+        - {icao24: 'startonce1', fetched_at: '2026-08-01 11:03:00', turns_started: 1,    distinct_turn_signs: 1}
+        - {icao24: 'startonce1', fetched_at: '2026-08-01 11:04:00', turns_started: 1,    distinct_turn_signs: 1}  # still 1 -- no re-fire mid-turn
+ 
+  # ---------------------------------------------------------------------
+  # 5. The target real-world shape: turn, straight, turn again, same
+  #    direction (a fragment of a racetrack hold). Confirms turns_started
+  #    reaches 2 via two independent starts, distinct_turn_signs stays 1
+  #    throughout since only one direction is ever seen. Bonus:
+  #    total_degrees_changed traced alongside to show it accumulates
+  #    independently of the turn/straight classification
+  # ---------------------------------------------------------------------
+  - name: test_two_laps_same_direction
+    model: int_flight_patterns_calc
+    overrides:
+      macros:
+        dbt.current_timestamp: "'2026-08-01 11:25:00'::timestamp"
+        is_incremental: False
+    given:
+      - input: ref('stg_flight_states')
+        rows:
+          - {icao24: 'twolaps1', fetched_at: '2026-08-01 11:01:00', true_track: 90}   # first row -> null
+          - {icao24: 'twolaps1', fetched_at: '2026-08-01 11:02:00', true_track: 90}   # delta 0 -> straight
+          - {icao24: 'twolaps1', fetched_at: '2026-08-01 11:03:00', true_track: 140}  # delta +50 -> turn 1 starts
+          - {icao24: 'twolaps1', fetched_at: '2026-08-01 11:04:00', true_track: 140}  # delta 0 -> straight again
+          - {icao24: 'twolaps1', fetched_at: '2026-08-01 11:05:00', true_track: 190}  # delta +50 -> turn 2 starts
+    expect:
+      rows:
+        - {icao24: 'twolaps1', fetched_at: '2026-08-01 11:01:00', turns_started: null, distinct_turn_signs: 0, total_degrees_changed: null}
+        - {icao24: 'twolaps1', fetched_at: '2026-08-01 11:02:00', turns_started: 0,    distinct_turn_signs: 0, total_degrees_changed: 0}
+        - {icao24: 'twolaps1', fetched_at: '2026-08-01 11:03:00', turns_started: 1,    distinct_turn_signs: 1, total_degrees_changed: 50}
+        - {icao24: 'twolaps1', fetched_at: '2026-08-01 11:04:00', turns_started: 1,    distinct_turn_signs: 1, total_degrees_changed: 50}
+        - {icao24: 'twolaps1', fetched_at: '2026-08-01 11:05:00', turns_started: 2,    distinct_turn_signs: 1, total_degrees_changed: 100}
+ 
+  # ---------------------------------------------------------------------
+  # 6. Session gap greater than 5 minutes: the delta must be NULLED, not
+  #    computed as a real (nonsense) heading change across the gap
+  # ---------------------------------------------------------------------
+  - name: test_session_gap_gt5min_nulls
+    model: int_flight_patterns_calc
+    overrides:
+      macros:
+        dbt.current_timestamp: "'2026-08-01 11:25:00'::timestamp"
+        is_incremental: False
+    given:
+      - input: ref('stg_flight_states')
+        rows:
+          - {icao24: 'gap1', fetched_at: '2026-08-01 11:01:00', true_track: 90}   # first row -> null
+          - {icao24: 'gap1', fetched_at: '2026-08-01 11:07:00', true_track: 200}  # 6 min gap (>5) -> delta must be nulled, not computed
+    expect:
+      rows:
+        - {icao24: 'gap1', fetched_at: '2026-08-01 11:01:00', turns_started: null, distinct_turn_signs: 0}
+        - {icao24: 'gap1', fetched_at: '2026-08-01 11:07:00', turns_started: null, distinct_turn_signs: 0}
+ 
+  # ---------------------------------------------------------------------
+  # 7. Session gap of EXACTLY 5 minutes: guard uses strict '>', so this
+  #    must NOT be treated as a gap -- delta computes normally
+  # ---------------------------------------------------------------------
+  - name: test_session_gap_exactly5min_not_nulled
+    model: int_flight_patterns_calc
+    overrides:
+      macros:
+        dbt.current_timestamp: "'2026-08-01 11:25:00'::timestamp"
+        is_incremental: False
+    given:
+      - input: ref('stg_flight_states')
+        rows:
+          - {icao24: 'gap2', fetched_at: '2026-08-01 11:01:00', true_track: 90}   # first row -> null
+          - {icao24: 'gap2', fetched_at: '2026-08-01 11:06:00', true_track: 190}  # exactly 5 min gap -> NOT nulled; delta +100 -> right turn
+    expect:
+      rows:
+        - {icao24: 'gap2', fetched_at: '2026-08-01 11:01:00', turns_started: null, distinct_turn_signs: 0}
+        - {icao24: 'gap2', fetched_at: '2026-08-01 11:06:00', turns_started: 0,    distinct_turn_signs: 1}
+ 
+  # ---------------------------------------------------------------------
+  # 8. Heading wraparound: 350 -> 10 must compute as a short +20 right
+  #    turn, not a naive -340 left swing
+  # ---------------------------------------------------------------------
+  - name: test_wraparound_correction
+    model: int_flight_patterns_calc
+    overrides:
+      macros:
+        dbt.current_timestamp: "'2026-08-01 11:25:00'::timestamp"
+        is_incremental: False
+    given:
+      - input: ref('stg_flight_states')
+        rows:
+          - {icao24: 'wrap1', fetched_at: '2026-08-01 11:01:00', true_track: 350}  # first row -> null
+          - {icao24: 'wrap1', fetched_at: '2026-08-01 11:02:00', true_track: 10}   # raw -340 -> corrected +20 -> right turn
+    expect:
+      rows:
+        - {icao24: 'wrap1', fetched_at: '2026-08-01 11:01:00', turns_started: null, distinct_turn_signs: 0}
+        - {icao24: 'wrap1', fetched_at: '2026-08-01 11:02:00', turns_started: 0,    distinct_turn_signs: 1}
+ 
+  # ---------------------------------------------------------------------
+  # 9. Partition isolation: two aircraft interleaved in fetch order.
+  #    Aircraft A stays straight throughout; aircraft B turns. Confirms
+  #    A's window aggregates are computed only from A's own rows -- if
+  #    partitioning were broken, B's turn could leak into A's
+  #    distinct_turn_signs
+  # ---------------------------------------------------------------------
+  - name: test_partition_isolation_multi_aircraft
+    model: int_flight_patterns_calc
+    overrides:
+      macros:
+        dbt.current_timestamp: "'2026-08-01 11:25:00'::timestamp"
+        is_incremental: False
+    given:
+      - input: ref('stg_flight_states')
+        rows:
+          - {icao24: 'A', fetched_at: '2026-08-01 11:01:00', true_track: 90}   # A, first row -> null
+          - {icao24: 'B', fetched_at: '2026-08-01 11:01:00', true_track: 200}  # B, first row -> null (interleaved on purpose)
+          - {icao24: 'A', fetched_at: '2026-08-01 11:02:00', true_track: 95}   # A, delta +5 -> straight
+          - {icao24: 'B', fetched_at: '2026-08-01 11:02:00', true_track: 320}  # B, delta +120 -> right turn
+    expect:
+      rows:
+        - {icao24: 'A', fetched_at: '2026-08-01 11:01:00', turns_started: null, distinct_turn_signs: 0}
+        - {icao24: 'B', fetched_at: '2026-08-01 11:01:00', turns_started: null, distinct_turn_signs: 0}
+        - {icao24: 'A', fetched_at: '2026-08-01 11:02:00', turns_started: 0,    distinct_turn_signs: 0}  # unaffected by B's turn
+        - {icao24: 'B', fetched_at: '2026-08-01 11:02:00', turns_started: 0,    distinct_turn_signs: 1}
+ 
+  # ---------------------------------------------------------------------
+  # 10. altitude_range / max_abs_vertical_rate must be scoped to w5 (5 min),
+  #     not w15. Row 1 ages out of the 5-minute window by row 3, even
+  #     though it's still inside the 15-minute window -- demonstrated by
+  #     altitude_range shrinking from what a w15-scoped value would show
+  # ---------------------------------------------------------------------
+  - name: test_altitude_vertical_rate_w5_window
+    model: int_flight_patterns_calc
+    overrides:
+      macros:
+        dbt.current_timestamp: "'2026-08-01 11:25:00'::timestamp"
+        is_incremental: False
+    given:
+      - input: ref('stg_flight_states')
+        rows:
+          - {icao24: 'alt1', fetched_at: '2026-08-01 11:01:00', true_track: 90, baro_altitude: 1000, vertical_rate: 0}  # first row
+          - {icao24: 'alt1', fetched_at: '2026-08-01 11:04:00', true_track: 95, baro_altitude: 1500, vertical_rate: 5}  # 3 min gap
+          - {icao24: 'alt1', fetched_at: '2026-08-01 11:09:00', true_track: 100, baro_altitude: 1010, vertical_rate: 1} # 5 min gap from prev (not >5, not nulled); row1 is now 8 min old -> outside w5
+    expect:
+      rows:
+        - {icao24: 'alt1', fetched_at: '2026-08-01 11:01:00', altitude_range: 0,   max_abs_vertical_rate: 0}
+        - {icao24: 'alt1', fetched_at: '2026-08-01 11:04:00', altitude_range: 500, max_abs_vertical_rate: 5}
+        - {icao24: 'alt1', fetched_at: '2026-08-01 11:09:00', altitude_range: 490, max_abs_vertical_rate: 5}  # row1 (alt 1000) excluded -- w15 would have given 500
+ 

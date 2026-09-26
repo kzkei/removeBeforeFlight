@@ -36,5 +36,7 @@ models:
       +materialized: view
     intermediate:
       +materialized: view
+      int_flight_patterns_calc:
+        +materialized: table
     marts:
       +materialized: table

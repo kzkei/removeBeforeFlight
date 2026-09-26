@@ -7,21 +7,23 @@ from datetime import timedelta, datetime, timezone
 # set up module logger
 logger = logging.getLogger(__name__)
 
-# specify retry behavior and defaults
+# specify retry behavior and args for high frequency cron
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
     'email_on_failure': False,
     'email_on_retry': False,
-    'retries': 3,
-    'retry_delay': timedelta(minutes=5),
-    'retry_exponential_backoff': True,
-    'max_retry_delay': timedelta(minutes=60),
+    'retries': 1, # retry once, fail fast, wait for next interval
+    'retry_delay': timedelta(seconds=15),
+    'retry_exponential_backoff': False,
+    'catch_up': False
 }
 
 @dag(
     default_args=default_args,
-    schedule="*/5 * * * *", # cron for every 5 minutes
+    schedule="*/1 * * * *", # cron for every 1 minute
+    max_active_runs=1, # prevent overlapping runs
+    catchup=False
 )
 def live_flights_pipeline():
     """ Ingest, stage and transform with dbt - DAG pipeline def """
