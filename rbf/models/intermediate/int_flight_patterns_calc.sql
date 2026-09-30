@@ -1,5 +1,5 @@
 -- intermediate model to calculate rolling flight metrics for identifying holding patterns
--- used in fct_active_holdings_assumed and verfied tables
+-- used in int_holding_candidates_current view to supply both assumed/verified fct tables
 -- data fetched every minute
 
 -- delete+insert (merge) incremental strategy -> append only new records, preserve history
